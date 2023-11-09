@@ -1,0 +1,223 @@
+---
+title: "Project 2"
+author: "Mehal Agrawal"
+date: "2023-11-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(ggplot2)
+library(knitr)
+library(kableExtra)
+```
+
+# **Introduction**
+
+This dataset analyzes the airplane landings at SFO International Airport. The data has been obtained from DataSF, a website that tracks different types of data in San Franscisco. This data is publicly available to help enhance decision making. The dataset was received from [here](https://data.sfgov.org/Transportation/Air-Traffic-Landings-Statistics/fpux-q53t). I picked this dataset because I love to travel and have been to SFO many times as it is my local airport. I was interested in analyzing the air traffic at SFO and gaining more insight about the airport itself.
+
+![Bills, Terry. "San Francisco Airport's Dynamic Twin Has Transformed Operations." Esri, 21 Oct. 2021, esri.com/about/newsroom/blog/san-francisco-airport-bim-gis-processes/. Accessed 07 Nov. 2023.](/Users/mehalagrawal/Downloads/SFO.jpeg)
+
+```{r, message=FALSE}
+planes <- read_csv("MonthlyLandingsData_200507_to_201603.csv")
+```
+
+# **Data Preparation**
+
+I downloaded the csv file and then imported it into the Rmarkdown. As for processing, the main step I had to take was renaming the variables so that there were no spaces in them. I made 3 new variables. The first one was "Total_Landed_Weight_In_Millions." I made this variable because the orginial variable had values that were very big and would be harder to handle later on in terms of graphing and analyzing. The second variable I made was "Continent." I made this varaible because my report investigates the relationship between the aircraft manufacturer and continent. The last variable I created was a month variable which is later investigated in this report. Challenges I faced while preparing my data was the amoutn of data there is in the data set. I had to take time to understand each variable and how it functions in the data set. In terms of NA values, I dropped the rows that contained them. This is because I would not be able to analyze these rows. My data set now has 16,115 observations with 16 variables.
+
+```{r, message=FALSE}
+
+#renaming variables and replacing spaces with underscores 
+planes <- planes %>%
+  rename_with(~ gsub(" ", "_", .), everything())
+planes2 <- na.omit(planes)
+
+#Creating new variable 'Continent
+n <- nrow(planes2)
+planes2$Continent <- NA
+
+for (i in 1:n) {
+  if (str_detect(planes2$GEO_Region[i], "US|Mexico|Canada|Central America")) {
+    planes2$Continent[i] <- "North America"
+  }
+  if (str_detect(planes2$GEO_Region[i], "Asia|Middle East")) {
+    planes2$Continent[i] <- "Asia"
+  }
+  if (str_detect(planes2$GEO_Region[i], "Europe")) {
+    planes2$Continent[i] <- "Europe"
+  }
+  if (str_detect(planes2$GEO_Region[i], "South America")) {
+    planes2$Continent[i] <- "South America"
+  }
+  if (str_detect(planes2$GEO_Region[i], "Australia / Oceania")) {
+    planes2$Continent[i] <- "Australia"
+  }
+}
+
+#creating new variable "Month"
+planes2 <- mutate(planes2, Month= str_sub(planes2$Activity_Period, 5,6))
+
+#create new variable "Total_Landed_Weight_In_Millions
+planes2 <- mutate(planes2, Total_Landed_Weight_In_Millions= round(planes2$Total_Landed_Weight/1000000,3))
+
+
+```
+
+# **Variable Descriptions**
+
+```{r, results='markup', message=FALSE}
+data <- data.frame(
+  Name = c("Activity_Period","Operating_Airline", "Operating_Airline", "Published_Airline", "Published_Airline_IATA_Code", "GEO_Summary", "GEO_Region","Landing_Aircraft_Type", "Aircraft_Body_Type", "Aircraft_Manufacturer", "Aircraft_Model", "Aircraft_Version", "Landing_Count", "Total_Landed_Weight", "Continent", "Month", "Total_Landed_Weight_In_Millions"),
+  Type = c("double-precision floating-point","Character","Character","Character","Character","Character","Character","Character","Character","Character","Character","Character","double-precision floating-point","double-precision floating-point","Character","Character","double-precision floating-point"),
+   Description = c(
+    "Year and month at which the landing activity took place", "Operator name of the aircraft with passenger, cargo, or landing activity", "International Air Transport Association two-letter designation for the Operating Airline", "Name of Airline that issues ticket and books revenue for aircraft","International Air Transport Association two-letter designation for the Publsihed Airline","Designates whehter the passenger, cargo, or landings activity in relation to SFO arrived from a domestic or international location","Detailed breakdown of Geo Summary designating the region from which the aircraft departed from","Type of aircraft landed (freighters, passenger, or combi)","Determines whether aircraft is a wide body, narrowbody, regional, or prpeller operated aircraft","Manufacturer name of aircraft","Model of aircraft designated by manufacturer","Variation of Aircraft Model (dash number) used to segregate uniqeu version of same model","Number of aircaft landings","Total Landed Weight","Continent from which aircraft departed from","Coresponding Month for Activity","Total Landed Weight In Millions"
+  )
+)
+
+table_with_paragraphs <- kable(data, "html", escape = FALSE) %>%
+  kable_styling("striped", full_width = FALSE)
+print(table_with_paragraphs)
+```
+
+# **Univariate Analyses**
+
+Univariate Analyses: Choose at least 4 of your variables and create univariate graphs to display them. Provide a brief description of the distribution, including more than one relevant descriptive statistic, to go along with each graph.
+
+Questions: what statistics can you describe for a bar chart do I have to drop variables i am not using because each row is unqiue because of that
+
+```{r, message=FALSE}
+planes_ggplot= ggplot(planes2)
+```
+
+### Graph 1
+
+```{r, message=FALSE}
+#Univariate graph of Total Landed Weight in Millions
+planes_ggplot+ geom_histogram(aes(Total_Landed_Weight_In_Millions), col="seagreen", fill="lightblue") + labs(title="Total Landed Weight In Millions",x="Total Landed Weight (In Millions)")
+```
+
+This graph displayed a histogram of the Total Landed Weight In Millions for each plane type. The histogram is skewed right with a mean of `r round(mean(planes2$Total_Landed_Weight_In_Millions),2)`. The maximum total weight landed is `r round(max(planes2$Total_Landed_Weight_In_Millions),2)` and the minimum total landed weight in millions is `r round(min(planes2$Total_Landed_Weight_In_Millions),2)`.
+
+### Graph 2 
+```{r, message=FALSE}
+ggplot(planes2, aes(x = GEO_Summary)) +
+  geom_bar(aes(fill = factor(GEO_Summary)), position = "dodge") +
+  labs(title = "Domestic vs. International Flights",
+       x = "GEO_Summary",
+       y = "Count")
+```
+
+This bar graph shows the numebr of planes that arrived from a domestic location and the number of planes that arrived from an international location. `r sum(str_detect(planes2$GEO_Summary,"Domestic"))` arrived from a domestic location or `r round((sum(str_detect(planes2$GEO_Summary,"Domestic"))/16115),3)*100`% of planes. `r sum(str_detect(planes2$GEO_Summary,"International"))` or `r round((sum(str_detect(planes2$GEO_Summary,"International"))/16115),3)*100`% of planes arrived from an international location. 
+
+### Graph 3
+```{r, message=FALSE}
+planes_ggplot+ geom_histogram(aes(Landing_Count), col="black", fill="pink") + labs(title="Landing Count",x="Landing Count")
+```
+
+This histogram shows the landing count of each plane type at SFO Airport. It is skewed right with a mean of `r round(mean(planes2$Landing_Count),2)`. The maximum number of times a plane type landed is `r max(planes2$Landing_Count)`.
+
+### Graph 4
+```{r, message=FALSE}
+ggplot(planes2, aes(x = Landing_Aircraft_Type)) +
+  geom_bar(aes(fill = factor(Landing_Aircraft_Type)), position = "dodge") +
+  labs(title = "Aircraft Type",
+       x = "GEO_Summary",
+       y = "Count")
+```
+
+# **Multivariate Analyses**
+
+Multivariate Analyses: Create at least 4 multivariate (2 or more variables) graphs to display the relationships among your variables of interest. Provide a brief description of what your plots show, including one or more bivariate descriptive statistics.
+
+### Graph 1
+```{r, message=FALSE}
+#for each airline was it primarily domestic or international and compare the total landing weights create a new tibble with the airline, percentage of domestic, percentage of international, and the average landing weight
+
+airline <- unique(planes2$Published_Airline)
+n <- length(airline)
+
+prop_international <- c()
+avg_totalweight <- c()
+
+
+for(i in 1:n) {
+  airline[i]
+  avg_totalweight[i] <- mean(planes2$Total_Landed_Weight_In_Millions[planes2$Published_Airline==airline[i]])
+  plane_subset <- filter(planes2, planes2$Published_Airline==airline[i])
+  prop_international[i] <- sum(plane_subset$GEO_Summary=="International")/nrow(plane_subset)
+
+}
+airplane <- tibble(Airline=airline, Proportion_International=prop_international, Average_Total_Weight= avg_totalweight)
+
+ggplot(airplane) + geom_point(aes(x=Proportion_International, y=Average_Total_Weight))
+
+print(summarize(group_by(planes2, Published_Airline), round(mean(Total_Landed_Weight_In_Millions),2)))
+```
+This plot graphs the proportion of each airplane type that is international and its average total weight. The correlation coefficient is `r round(cor(airplane$Proportion_International, airplane$Average_Total_Weight),2)` 
+
+### Graph 2
+```{r, message=FALSE}
+#for each plane where did it come from and the percent that was each manufacturer
+#WHAT STATISTICS TO COMPUTE??
+
+n <- nrow(planes2)
+planes2$Continent <- NA
+
+for (i in 1:n) {
+  if (str_detect(planes2$GEO_Region[i], "US|Mexico|Canada|Central America")) {
+    planes2$Continent[i] <- "North America"
+  }
+  if (str_detect(planes2$GEO_Region[i], "Asia|Middle East")) {
+    planes2$Continent[i] <- "Asia"
+  }
+  if (str_detect(planes2$GEO_Region[i], "Europe")) {
+    planes2$Continent[i] <- "Europe"
+  }
+  if (str_detect(planes2$GEO_Region[i], "South America")) {
+    planes2$Continent[i] <- "South America"
+  }
+  if (str_detect(planes2$GEO_Region[i], "Australia / Oceania")) {
+    planes2$Continent[i] <- "Australia"
+  }
+}
+
+planes_ggplot <- ggplot(planes2, aes(x = Continent, fill = Aircraft_Manufacturer)) +
+  geom_bar(position = "fill") +
+  labs(title = "Contingency Bar Graph Example")
+
+
+planes_ggplot
+```
+This graph is a contigency bar chart. It uses the variable "Continent" and graphs the percentage of planes coming from that continent by th e
+
+### Graph 3
+```{r, message=FALSE}
+#Landing Aircraft type and Aircraft body type
+#QUESTION WHAT STATISTICS TO COMPUTE FOR THIS!!
+
+#why does this line of code not work
+#ggplot(data= planes2) + geom_bar(aes(x=Landing_Aircraft_Type, fill= Aircraft_Body_Type, position = "fill"))
+
+planes_ggplot <- ggplot(planes2, aes(x = Landing_Aircraft_Type, fill = Aircraft_Body_Type)) +
+  geom_bar(position = "fill") +
+  labs(title = "Contingency Bar Graph Example")
+
+planes_ggplot
+
+
+```
+
+### Graph 4
+```{r, message=FALSE}
+#landing of international and national flights based on month 
+#WHAT STATS TO COMPUTE
+planes2$Activity_Period <- as.character(planes2$Activity_Period)
+
+#does this count as formatting string 
+planes2 <- mutate(planes2, Month= str_sub(planes2$Activity_Period, 5,6))
+
+ggplot(data=planes2) +geom_bar(aes(x=Month, fill=GEO_Summary), position="dodge")
+
+```
